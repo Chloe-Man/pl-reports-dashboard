@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aurora Dynamics – Revenue Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --card:      #161b22;
+      --card2:     #1c2128;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --blue:      #58a6ff;
+      --green:     #3fb950;
+      --orange:    #f0883e;
+      --purple:    #bc8cff;
+      --red:       #f85149;
+      --yellow:    #e3b341;
+      --teal:      #39d353;
+      --radius:    10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      min-height: 100vh;
+      padding: 20px 24px 40px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.3px;
+    }
+    .header-left span {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      display: block;
+    }
+    .header-badge {
+      background: var(--blue);
+      color: #0d1117;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: .4px;
+    }
+
+    /* ── KPI Bar ── */
+    .kpi-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent-color, var(--blue));
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .kpi-card:hover { border-color: #484f58; }
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 6px;
+      letter-spacing: -.5px;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .badge-up   { color: var(--green); font-weight: 600; }
+    .badge-down { color: var(--red);   font-weight: 600; }
+    .badge-neu  { color: var(--muted); font-weight: 600; }
+
+    /* ── Chart Grid ── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .card-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .chart-wrap { position: relative; }
+
+    /* ── Variance Table ── */
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    thead th {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 8px 12px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    thead th:first-child { text-align: left; }
+    tbody td {
+      padding: 10px 12px;
+      text-align: right;
+      border-bottom: 1px solid #21262d;
+      font-size: 13px;
+      color: var(--text);
+    }
+    tbody td:first-child { text-align: left; font-weight: 500; }
+    tbody tr:last-child td {
+      font-weight: 700;
+      border-bottom: none;
+      background: #1c2128;
+      color: var(--text);
+    }
+    tbody tr:last-child td:first-child { border-radius: 0 0 0 6px; }
+    tbody tr:last-child td:last-child  { border-radius: 0 0 6px 0; }
+    .var-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .pos { color: var(--green); }
+    .neg { color: var(--red);   }
+    .loc-bar {
+      display: inline-block;
+      height: 6px;
+      border-radius: 3px;
+      margin-left: 8px;
+      vertical-align: middle;
+      opacity: .7;
+    }
+
+    /* ── Bottom row ── */
+    .bottom-row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+    /* ── Legend ── */
+    .legend { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--muted);
+    }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 2px; }
+    .legend-line { width: 18px; height: 2px; border-radius: 1px; }
+
+    /* ── Loading ── */
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; color: var(--muted); font-size: 13px;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div class="header-left">
+    <h1>Aurora Dynamics &nbsp;/&nbsp; Revenue Dashboard</h1>
+    <span id="header-sub">Loading...</span>
+  </div>
+  <div class="header-badge">LIVE ACTUALS</div>
+</div>
+
+<!-- ── KPI Bar ── -->
+<div class="kpi-bar">
+  <div class="kpi-card" style="--accent-color:#58a6ff">
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value" id="kpi-revenue">--</div>
+    <div class="kpi-sub" id="kpi-revenue-sub">--</div>
+  </div>
+  <div class="kpi-card" style="--accent-color:#3fb950">
+    <div class="kpi-label">YoY Growth</div>
+    <div class="kpi-value" id="kpi-yoy">--</div>
+    <div class="kpi-sub" id="kpi-yoy-sub">--</div>
+  </div>
+  <div class="kpi-card" style="--accent-color:#e3b341">
+    <div class="kpi-label">MoM Growth</div>
+    <div class="kpi-value" id="kpi-mom">--</div>
+    <div class="kpi-sub" id="kpi-mom-sub">--</div>
+  </div>
+  <div class="kpi-card" style="--accent-color:#bc8cff">
+    <div class="kpi-label">Gross Margin</div>
+    <div class="kpi-value" id="kpi-margin">--</div>
+    <div class="kpi-sub" id="kpi-margin-sub">--</div>
+  </div>
+  <div class="kpi-card" style="--accent-color:#f0883e">
+    <div class="kpi-label">Top 5 Customers</div>
+    <div class="kpi-value" id="kpi-top5">--</div>
+    <div class="kpi-sub" id="kpi-top5-sub">--</div>
+  </div>
+</div>
+
+<!-- ── Top Charts Row ── -->
+<div class="chart-row">
+
+  <!-- Trend Line -->
+  <div class="card">
+    <div class="card-title">12-Month Revenue Trend</div>
+    <div class="card-sub" id="trend-sub">Loading...</div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-line" style="background:#58a6ff"></div>
+        Current Period
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:#484f58;border-top:2px dashed #484f58;background:none"></div>
+        Prior Year Reference
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Stacked Bar by Region -->
+  <div class="card">
+    <div class="card-title">Revenue by Region</div>
+    <div class="card-sub" id="region-sub">Loading...</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>North America</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#bc8cff"></div>EMEA</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f0883e"></div>Asia</div>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="stackedBar"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Variance Table ── -->
+<div class="table-card">
+  <div class="card-title" id="variance-title">Revenue Variance by Region</div>
+  <div class="card-sub" style="margin-bottom:12px">Month-over-month change in product revenue by geographical segment</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Region</th>
+        <th id="th-prev">Prev Month</th>
+        <th id="th-curr">Curr Month</th>
+        <th>$ Change</th>
+        <th>% Change</th>
+        <th>Share of Rev</th>
+      </tr>
+    </thead>
+    <tbody id="variance-body">
+      <tr><td colspan="6" class="loading">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Top 5 Customers ── -->
+<div class="bottom-row">
+  <div class="card">
+    <div class="card-title" id="top5-title">Top 5 Customers by Revenue</div>
+    <div class="card-sub" id="top5-sub">Loading...</div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="top5Chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Chart.js + Data Loader ── -->
+<script>
+  Chart.defaults.color = '#8b949e';
+  Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  Chart.defaults.font.size = 11;
+
+  const gridColor = '#21262d';
+  const charts = {};   // store chart instances so we can destroy/rebuild
+
+  function fmtM(v) {
+    if (v === null || v === undefined) return 'N/A';
+    if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+    if (Math.abs(v) >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+    return '$' + v.toLocaleString();
+  }
+
+  function fmtPct(v, decimals = 1) {
+    if (v === null || v === undefined) return 'N/A';
+    return (v >= 0 ? '+' : '') + v.toFixed(decimals) + '%';
+  }
+
+  function badgeClass(v) {
+    if (v === null || v === undefined) return 'badge-neu';
+    return v >= 0 ? 'badge-up' : 'badge-down';
+  }
+
+  function arrow(v) {
+    if (v === null || v === undefined) return '';
+    return v >= 0 ? '▲ ' : '▼ ';
+  }
+
+  // ── Fetch data and render ─────────────────────────────────────────────
+  async function loadDashboard() {
+    const data = await fetch('/api/dashboard').then(r => r.json());
+    const k = data.kpis;
+
+    // ── Header ───────────────────────────────────────────────────────────
+    document.getElementById('header-sub').textContent =
+      `Reporting period: ${data.latest_month_label}  ·  Data source: GL Actuals  ·  All figures in USD`;
+
+    // ── KPI Cards ─────────────────────────────────────────────────────────
+    document.getElementById('kpi-revenue').textContent = fmtM(k.total_revenue);
+    document.getElementById('kpi-revenue-sub').innerHTML =
+      `<span class="${badgeClass(k.mom_growth_abs)}">${arrow(k.mom_growth_abs)}${fmtM(k.mom_growth_abs)}</span>
+       vs ${data.prev_month_label}`;
+
+    document.getElementById('kpi-yoy').textContent = fmtPct(k.yoy_growth_pct);
+    document.getElementById('kpi-yoy-sub').innerHTML =
+      k.yoy_growth_abs !== null
+        ? `<span class="${badgeClass(k.yoy_growth_abs)}">${arrow(k.yoy_growth_abs)}${fmtM(Math.abs(k.yoy_growth_abs))}</span> vs prior year`
+        : `<span class="badge-neu">No prior year data</span>`;
+
+    document.getElementById('kpi-mom').textContent = fmtPct(k.mom_growth_pct);
+    document.getElementById('kpi-mom-sub').innerHTML =
+      `<span class="${badgeClass(k.mom_growth_abs)}">${arrow(k.mom_growth_abs)}${fmtM(Math.abs(k.mom_growth_abs))}</span>
+       vs ${data.prev_month_label}`;
+
+    document.getElementById('kpi-margin').textContent =
+      k.gross_margin_pct !== null ? k.gross_margin_pct.toFixed(1) + '%' : 'N/A';
+    document.getElementById('kpi-margin-sub').innerHTML =
+      `<span class="badge-neu">&#8212;</span> Revenue less COGS`;
+
+    document.getElementById('kpi-top5').textContent =
+      k.top5_pct !== null ? k.top5_pct.toFixed(1) + '%' : 'N/A';
+    document.getElementById('kpi-top5-sub').innerHTML =
+      `<span class="badge-neu">&#8212;</span> of ${data.latest_month_label} revenue`;
+
+    // ── Trend Chart ───────────────────────────────────────────────────────
+    const tLabels   = data.trend.labels;
+    const firstLabel = tLabels[0];
+    const lastLabel  = tLabels[tLabels.length - 1];
+    document.getElementById('trend-sub').textContent =
+      `${firstLabel} – ${lastLabel}  vs  Prior Year (where available)`;
+
+    if (charts.trend) charts.trend.destroy();
+    charts.trend = new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: tLabels,
+        datasets: [
+          {
+            label: 'Current Period',
+            data: data.trend.current,
+            borderColor: '#58a6ff',
+            backgroundColor: ctx => {
+              const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 240);
+              g.addColorStop(0, 'rgba(88,166,255,0.18)');
+              g.addColorStop(1, 'rgba(88,166,255,0)');
+              return g;
+            },
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#58a6ff',
+            tension: 0.35,
+            fill: true,
+            spanGaps: false,
+          },
+          {
+            label: 'Prior Year Reference',
+            data: data.trend.prior,
+            borderColor: '#484f58',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointStyle: 'triangle',
+            pointBackgroundColor: '#8b949e',
+            pointHoverRadius: 6,
+            tension: 0.35,
+            fill: false,
+            spanGaps: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c2128',
+            borderColor: '#30363d',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              label: ctx => ctx.raw === null ? null : ` ${ctx.dataset.label}: ${fmtM(ctx.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { maxRotation: 0 } },
+          y: { grid: { color: gridColor }, ticks: { callback: v => fmtM(v) } }
+        }
+      }
+    });
+
+    // ── Stacked Bar by Region ─────────────────────────────────────────────
+    document.getElementById('region-sub').textContent =
+      `${firstLabel} – ${lastLabel}  ·  Stacked by location`;
+
+    if (charts.stacked) charts.stacked.destroy();
+    charts.stacked = new Chart(document.getElementById('stackedBar'), {
+      type: 'bar',
+      data: {
+        labels: data.by_region.labels,
+        datasets: [
+          { label: 'North America', data: data.by_region.north_america, backgroundColor: 'rgba(88,166,255,0.85)',  borderRadius: 0 },
+          { label: 'EMEA',          data: data.by_region.emea,          backgroundColor: 'rgba(188,140,255,0.85)', borderRadius: 0 },
+          { label: 'Asia',          data: data.by_region.asia,          backgroundColor: 'rgba(240,136,62,0.85)',  borderRadius: { topLeft: 4, topRight: 4 } },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c2128',
+            borderColor: '#30363d',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${fmtM(ctx.raw)}`,
+              footer: items => `Total: ${fmtM(items.reduce((s, i) => s + i.raw, 0))}`
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 0 } },
+          y: { stacked: true, grid: { color: gridColor }, ticks: { callback: v => fmtM(v) } }
+        }
+      }
+    });
+
+    // ── Variance Table ────────────────────────────────────────────────────
+    document.getElementById('variance-title').textContent =
+      `Revenue Variance by Region  —  ${data.prev_month_label} vs ${data.latest_month_label}`;
+    document.getElementById('th-prev').textContent = data.prev_month_label;
+    document.getElementById('th-curr').textContent = data.latest_month_label;
+
+    const barMaxWidth = 80;
+    const maxCurr = Math.max(...data.variance_table.filter(r => r.region !== 'Total').map(r => r.curr));
+
+    const tbody = document.getElementById('variance-body');
+    tbody.innerHTML = data.variance_table.map(row => {
+      const isTotal = row.region === 'Total';
+      const chgClass = row.change_abs >= 0 ? 'pos' : 'neg';
+      const chgSign  = row.change_abs >= 0 ? '+' : '';
+      const barWidth = isTotal ? 0 : Math.round((row.curr / maxCurr) * barMaxWidth);
+      const dotHtml  = row.color
+        ? `<span class="var-dot" style="background:${row.color}"></span>`
+        : '';
+      const barHtml  = row.color
+        ? `<span class="loc-bar" style="width:${barWidth}px;background:${row.color}"></span>`
+        : '';
+
+      return `<tr>
+        <td>${dotHtml}${row.region}${barHtml}</td>
+        <td>${fmtM(row.prev)}</td>
+        <td>${fmtM(row.curr)}</td>
+        <td class="${isTotal ? '' : chgClass}">${chgSign}${fmtM(row.change_abs)}</td>
+        <td class="${isTotal ? '' : chgClass}">${chgSign}${row.change_pct !== null ? row.change_pct.toFixed(1) + '%' : 'N/A'}</td>
+        <td>${row.share.toFixed(1)}%</td>
+      </tr>`;
+    }).join('');
+
+    // ── Top 5 Customers ───────────────────────────────────────────────────
+    const t5 = data.top5_customers;
+    const t5Total = t5.reduce((s, r) => s + r.revenue, 0);
+
+    document.getElementById('top5-title').textContent =
+      `Top 5 Customers by Revenue  —  ${data.latest_month_label}`;
+    document.getElementById('top5-sub').textContent =
+      `Individual contribution (bars) and cumulative % of total revenue (line)  ·  Cohort total: ${fmtM(t5Total)} = ${k.top5_pct.toFixed(1)}% of revenue`;
+
+    const barColors = [
+      'rgba(88,166,255,0.85)', 'rgba(63,185,80,0.85)',
+      'rgba(188,140,255,0.85)', 'rgba(240,136,62,0.85)', 'rgba(227,179,65,0.85)'
+    ];
+
+    if (charts.top5) charts.top5.destroy();
+    charts.top5 = new Chart(document.getElementById('top5Chart'), {
+      type: 'bar',
+      data: {
+        labels: t5.map(r => r.customer),
+        datasets: [
+          {
+            label: 'Revenue',
+            data: t5.map(r => r.revenue),
+            backgroundColor: barColors,
+            borderRadius: 4,
+            yAxisID: 'yRev',
+            order: 2,
+          },
+          {
+            label: 'Cumulative %',
+            data: t5.map(r => r.cumulative_pct),
+            type: 'line',
+            borderColor: '#e3b341',
+            backgroundColor: 'rgba(227,179,65,0.08)',
+            borderWidth: 2,
+            pointRadius: 5,
+            pointBackgroundColor: '#e3b341',
+            pointHoverRadius: 7,
+            tension: 0.3,
+            fill: true,
+            yAxisID: 'yPct',
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: { boxWidth: 10, boxHeight: 10, padding: 14, color: '#8b949e', font: { size: 11 } }
+          },
+          tooltip: {
+            backgroundColor: '#1c2128',
+            borderColor: '#30363d',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              label: ctx => {
+                if (ctx.dataset.label === 'Revenue')
+                  return ` Revenue: ${fmtM(ctx.raw)} (${t5[ctx.dataIndex].pct}% of total)`;
+                return ` Cumulative: ${ctx.raw}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          yRev: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: gridColor },
+            ticks: { callback: v => fmtM(v) },
+            title: { display: true, text: 'Revenue (USD)', color: '#8b949e', font: { size: 10 } }
+          },
+          yPct: {
+            type: 'linear',
+            position: 'right',
+            min: 0, max: 100,
+            grid: { drawOnChartArea: false },
+            ticks: { callback: v => v + '%' },
+            title: { display: true, text: 'Cumulative %', color: '#8b949e', font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  loadDashboard().catch(err => {
+    console.error(err);
+    document.getElementById('header-sub').textContent = 'Error loading data — is api.py running?';
+  });
+</script>
+</body>
+</html>
