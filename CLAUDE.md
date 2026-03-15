@@ -19,13 +19,13 @@ python upload_gl.py --list
 # Remove a month (format: MMYYYY)
 python upload_gl.py --delete 012024
 
-# Start the dashboard (opens at http://localhost:5000)
+# Start the dashboard locally (opens at http://localhost:5000)
 python api.py
 ```
 
 ## Architecture
 
-There are only three source files — no build step, no bundler, no tests:
+Three source files — no build step, no bundler, no tests:
 
 - **upload_gl.py** — CLI tool that reads CSV files from `Raw GL Data by Month/` into the `gl_transactions` table in `gl.db`. Column mapping from CSV headers to DB columns is defined in `COLUMN_MAP`. Re-uploading the same file replaces its rows (keyed on `source_file`).
 - **api.py** — Flask app with a single data endpoint `GET /api/dashboard` that computes KPIs (revenue, YoY/MoM growth, gross margin, top-5 customers), trend arrays, regional breakdowns, and a variance table. All queries hit `gl.db` directly via `sqlite3`. Serves `dashboard.html` at `/`.
@@ -44,4 +44,20 @@ Single table `gl_transactions` with indexes on `posting_date`, `account_id`, `en
 
 ## GL CSV File Naming
 
-Files in `Raw GL Data by Month/` follow the pattern `GL_MMYYYY.csv` (e.g., `GL_012024.csv` for January 2024). The `--delete` command expects the `MMYYYY` portion.
+Files in `Raw GL Data by Month/` follow the pattern `GL_MMYYYY.csv` (e.g., `GL_012024.csv` for January 2024). Available data spans 2023–2025 (all 12 months for each year). The `--delete` command expects the `MMYYYY` portion.
+
+## Deployment
+
+The dashboard is hosted on **Render** (free tier) at `https://pl-reports-dashboard.onrender.com`. GitHub repo: `https://github.com/Chloe-Man/pl-reports-dashboard.git`.
+
+- **render.yaml** — Render Blueprint that defines the web service config (build command, start command, plan).
+- **Start command:** `gunicorn api:app --bind 0.0.0.0:10000` (Render uses port 10000).
+- **Auto-deploy is off** (public git repo, not connected via Git Provider) — use **Manual Deploy → Deploy latest commit** in the Render dashboard after pushing.
+- `gl.db` is committed to the repo so Render has the data. After loading new months locally, push the updated `gl.db` and manually redeploy.
+- Free tier spins down with inactivity; first request after idle can take ~50 seconds.
+
+## Workflow: Adding a New Month
+
+1. `python upload_gl.py "Raw GL Data by Month/GL_MMYYYY.csv"` — load locally
+2. `git add gl.db && git commit -m "Update gl.db with <month> data" && git push` — push to GitHub
+3. Manual Deploy on Render dashboard — update the live site
