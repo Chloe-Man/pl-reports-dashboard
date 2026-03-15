@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: pl-reports-dashboard
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn api:app --bind 0.0.0.0:10000
+    plan: free
